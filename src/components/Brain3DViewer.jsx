@@ -8,24 +8,22 @@ export function Brain3DViewer ({ query }) {
   const [loading, setLoading] = useState(false)
   const [pointCount, setPointCount] = useState(0)
 
-  // 1. 初始化高清晰度 3D 畫布與光照設定
   useEffect(() => {
     const nv = new Niivue({
       show3Dcrosshair: false,
       backColor: [0.05, 0.08, 0.12, 1],
       isOrientCube: true,
-      isHighResolution: true // 啟用高 DPI 渲染，大幅改善模糊感
+      isHighResolution: true
     })
     nvRef.current = nv
     nv.attachToCanvas(canvasRef.current)
     nv.setSliceType(nv.sliceTypeRender)
 
     nv.loadVolumes([{ url: '/static/mni_2mm.nii.gz', opacity: 0.75 }]).then(() => {
-      nv.setVolumeRenderIllumination(0.7) // 提高 3D 腦皮質陰影對比度
+      nv.setVolumeRenderIllumination(0.7)
     })
   }, [])
 
-  // 2. 載入 MNI 標記點位
   useEffect(() => {
     if (!query || !nvRef.current) return
     setLoading(true)
@@ -55,7 +53,6 @@ export function Brain3DViewer ({ query }) {
       .finally(() => setLoading(false))
   }, [query])
 
-  // 大腦透明度控制
   const handleOpacityChange = (e) => {
     const val = parseFloat(e.target.value)
     setOpacity(val)
@@ -64,21 +61,31 @@ export function Brain3DViewer ({ query }) {
     }
   }
 
-  // 按鈕放大 / 縮放控制
-  const handleZoom = (factor) => {
+  // 縮放控制：使用 stopPropagation 避免事件被 3D 畫布吞掉
+  const handleZoom = (e, factor) => {
+    e.preventDefault()
+    e.stopPropagation()
     if (!nvRef.current) return
     const nv = nvRef.current
-    if (nv.scene && nv.scene.volScale) {
-      nv.scene.volScale = nv.scene.volScale.map((v) => v * factor)
+    if (nv.scene) {
+      if (!nv.scene.volScale || nv.scene.volScale.length < 3) {
+        nv.scene.volScale = [1, 1, 1]
+      }
+      nv.scene.volScale = [
+        nv.scene.volScale[0] * factor,
+        nv.scene.volScale[1] * factor,
+        nv.scene.volScale[2] * factor
+      ]
       nv.drawScene()
     }
   }
 
-  // 重置大小
-  const handleResetZoom = () => {
+  const handleResetZoom = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
     if (!nvRef.current) return
     const nv = nvRef.current
-    if (nv.scene && nv.scene.volScale) {
+    if (nv.scene) {
       nv.scene.volScale = [1, 1, 1]
       nv.drawScene()
     }
@@ -92,40 +99,42 @@ export function Brain3DViewer ({ query }) {
         {!loading && <span style={{ fontSize: '11px', color: '#8da4b5' }}>共標記 {pointCount} 個 MNI 點位</span>}
       </div>
 
-      {/* 3D 畫布與放大縮放按鈕區 */}
       <div style={{ flex: '1', position: 'relative', width: '100%', height: '200px', borderRadius: '8px', overflow: 'hidden' }}>
         <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
 
-        {/* 右上角浮動按鈕 */}
-        <div style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '4px', zIndex: 10 }}>
+        {/* 右上角浮動按鈕區 */}
+        <div
+          style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '4px', zIndex: 30 }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <button
             type="button"
-            onClick={() => handleZoom(1.2)}
+            onClick={(e) => handleZoom(e, 1.25)}
             title="放大"
-            style={{ width: '28px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.85)', color: '#fff', fontSize: '15px', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+            style={{ width: '28px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.9)', color: '#fff', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
           >
             +
           </button>
           <button
             type="button"
-            onClick={() => handleZoom(0.83)}
+            onClick={(e) => handleZoom(e, 0.8)}
             title="縮小"
-            style={{ width: '28px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.85)', color: '#fff', fontSize: '15px', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+            style={{ width: '28px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.9)', color: '#fff', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
           >
             -
           </button>
           <button
             type="button"
-            onClick={handleResetZoom}
+            onClick={(e) => handleResetZoom(e)}
             title="重置"
-            style={{ padding: '0 8px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.85)', color: '#fff', fontSize: '11px', cursor: 'pointer' }}
+            style={{ padding: '0 8px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.9)', color: '#fff', fontSize: '11px', cursor: 'pointer' }}
           >
             重置
           </button>
         </div>
       </div>
 
-      {/* 控制面板 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px' }}>
         <span>大腦透明度</span>
         <input
