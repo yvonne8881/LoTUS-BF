@@ -261,6 +261,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 
 /* NIfTI viewer */
 .nii-viewer { display: flex; flex-direction: column; gap: 13px; }
+.brain-map__tabs { display: inline-flex; align-self: flex-start; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: #f2f6f9; }
+.brain-map__tabs button { min-height: 34px; padding: 0 14px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #536b7f; font-size: 11px; font-weight: 750; cursor: pointer; }
+.brain-map__tabs button:hover { background: #e7eff4; }
+.brain-map__tabs button.is-active { border-color: #285d78; background: #285d78; color: #fff; box-shadow: 0 2px 5px rgba(25, 63, 84, .16); }
+.brain-map__study-meta { margin-top: 14px; padding: 13px 14px; border: 1px solid #d8e1e8; border-radius: 10px; background: #f6f8fa; color: #1b2735; }
+.brain-map__study-meta h3 { margin: 0; color: #172333; font-size: 13px; font-weight: 750; line-height: 1.45; }
+.brain-map__study-meta p { margin: 5px 0 0; color: #35475a; font-size: 11px; line-height: 1.5; }
 .nii-viewer__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .nii-viewer__download { padding: 7px 10px; border: 1px solid #d7e3eb; border-radius: 8px; color: var(--primary); background: #f7fafc; font-size: 10px; font-weight: 700; text-decoration: none; white-space: nowrap; }
 .nii-viewer__download:hover { background: var(--primary-soft); }
@@ -274,6 +281,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .nii-viewer__slice { min-width: 0; }
 .nii-viewer__slice-title { margin: 0 0 6px; color: #64758a; font-size: 10px; font-weight: 700; }
 .nii-viewer canvas { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; border: 1px solid #dce5ec; border-radius: 9px; background: #f3f5f7; }
+.nii-viewer__legend { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: #425367; font-size: 10px; }
+.nii-viewer__legend span { display: inline-flex; align-items: center; gap: 6px; }
+.nii-viewer__legend-point { width: 11px; height: 11px; border: 2px solid #26333d; border-radius: 50%; background: #ffe600; box-shadow: inset 0 0 0 1px #fff; }
+.nii-viewer__legend-map { width: 11px; height: 11px; border-radius: 3px; background: #e24343; }
 .nii-viewer__range { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; color: #607286; background: #fbfcfe; font-size: 10px; }
 .nii-viewer__range label { display: flex; flex: 1; align-items: center; gap: 9px; }
 .nii-viewer__range input[type="range"] { width: min(180px, 100%); accent-color: var(--primary); }

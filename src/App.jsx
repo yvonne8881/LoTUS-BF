@@ -34,6 +34,7 @@ export default function App () {
   const [query, setQuery] = useUrlQueryState('q')
   const [draftQuery, setDraftQuery] = useState(query)
   const [selectedStudyId, setSelectedStudyId] = useState('')
+  const [selectedStudy, setSelectedStudy] = useState(null)
   const [coordinateFields, setCoordinateFields] = useState({ x: '', y: '', z: '' })
   const research = useResearchWorkspace()
   const { ready: workspaceReady, user: accountUser, workspaceState, saveWorkspaceState } = research
@@ -51,16 +52,19 @@ export default function App () {
   useEffect(() => {
     setDraftQuery(query)
     setSelectedStudyId('')
+    setSelectedStudy(null)
   }, [query])
 
   const handleSearch = useCallback(() => {
     setSelectedStudyId('')
+    setSelectedStudy(null)
     setQuery(draftQuery.trim())
   }, [draftQuery, setQuery])
 
   const handleClearQuery = useCallback(() => {
     setDraftQuery('')
     setSelectedStudyId('')
+    setSelectedStudy(null)
     setQuery('')
   }, [setQuery])
 
@@ -71,6 +75,7 @@ export default function App () {
     const coordinateQuery = `[${values.join(', ')}]`
     setDraftQuery(coordinateQuery)
     setSelectedStudyId('')
+    setSelectedStudy(null)
     setQuery(coordinateQuery)
   }
 
@@ -443,7 +448,10 @@ export default function App () {
           <Studies
             query={query}
             selectedStudyId={selectedStudyId}
-            onSelectStudy={(study) => setSelectedStudyId(study?.study_id == null ? '' : String(study.study_id))}
+            onSelectStudy={(study) => {
+              setSelectedStudy(study)
+              setSelectedStudyId(study?.study_id == null ? '' : String(study.study_id))
+            }}
             user={research.user}
             groups={research.groups}
             notesByStudy={research.notesByStudy}
@@ -474,14 +482,21 @@ export default function App () {
         />
 
     <section className="card card--viewer" style={{ flexBasis: `${sizes[2]}%` }} aria-label="Brain map viewer">
-       {/* 2D 切片 */}
-       <NiiViewer query={query} studyId={selectedStudyId || null} />
-
-       {/* 分隔線 */}
-        <div className="divider" />
-
-        {/* 3D 腦影像 */}
-      <Brain3DViewer query={query} studyId={selectedStudyId || null} />
+      <div className="brain-map__tabs" role="tablist" aria-label="Brain map view">
+        <button type="button" role="tab" aria-selected={viewerMode === '2d'} className={viewerMode === '2d' ? 'is-active' : ''} onClick={() => setViewerMode('2d')}>2D slices</button>
+        <button type="button" role="tab" aria-selected={viewerMode === '3d'} className={viewerMode === '3d' ? 'is-active' : ''} onClick={() => setViewerMode('3d')}>3D brain</button>
+      </div>
+      {viewerMode === '2d'
+        ? <NiiViewer query={query} studyId={selectedStudyId || null} />
+        : <Brain3DViewer query={query} studyId={selectedStudyId || null} />}
+      {selectedStudy && (
+        <div className="brain-map__study-meta" aria-live="polite">
+          <h3>{selectedStudy.title || `Study ${selectedStudy.study_id}`}</h3>
+          <p>{Array.isArray(selectedStudy.authors ?? selectedStudy.author)
+            ? (selectedStudy.authors ?? selectedStudy.author).join('; ')
+            : (selectedStudy.authors ?? selectedStudy.author ?? 'Author information unavailable')}</p>
+        </div>
+      )}
     </section>
       </main>
       <footer className="app__footer">

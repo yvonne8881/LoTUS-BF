@@ -75,8 +75,8 @@ export function Brain3DViewer ({ query, studyId = null }) {
       .then((data) => {
         if (!Array.isArray(data.results) || !nvRef.current) return
         setPointCount(data.results.length)
-        const nodes = data.results.map((pt, idx) => ({
-          name: `MNI ${idx + 1}: ${Number(pt.x).toFixed(1)}, ${Number(pt.y).toFixed(1)}, ${Number(pt.z).toFixed(1)}`,
+        const nodes = data.results.map((pt) => ({
+          name: '',
           x: pt.x,
           y: pt.y,
           z: pt.z,
@@ -91,7 +91,7 @@ export function Brain3DViewer ({ query, studyId = null }) {
           nodeColormapNegative: 'warm',
           nodeMinColor: 0,
           nodeMaxColor: 1,
-          nodeScale: 8,
+          nodeScale: 4.5,
           edgeColormap: 'warm',
           edgeColormapNegative: 'warm',
           edgeMin: 0,

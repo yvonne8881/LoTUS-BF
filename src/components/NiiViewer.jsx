@@ -351,8 +351,29 @@ const coord2idx = (c_mm, n, axis) => {
     }
     ctx.putImageData(img, 0, 0)
 
-    // Draw exact MNI coordinate markers only when a point intersects the
-    // current anatomical slice (within half a voxel).
+    // draw green crosshairs
+    ctx.save()
+    ctx.strokeStyle = '#00ff00'
+    ctx.lineWidth = 1
+    let cx = 0, cy = 0
+    if (axis === 'z') { // plane: X by Y
+      cx = Math.max(0, Math.min(w-1, (X_RIGHT_ON_SCREEN_RIGHT ? (w - 1 - ix) : ix)))
+      cy = Math.max(0, Math.min(h-1, iy))
+    } else if (axis === 'y') { // plane: X by Z
+      cx = Math.max(0, Math.min(w-1, (X_RIGHT_ON_SCREEN_RIGHT ? (w - 1 - ix) : ix)))
+      cy = Math.max(0, Math.min(h-1, iz))
+    } else { // axis === 'x' (plane: Y by Z)
+      cx = Math.max(0, Math.min(w-1, iy))
+      cy = Math.max(0, Math.min(h-1, iz))
+    }
+    const screenY = h - 1 - cy // account for vertical flip used when drawing
+    // vertical line
+    ctx.beginPath(); ctx.moveTo(cx + 0.5, 0); ctx.lineTo(cx + 0.5, h); ctx.stroke()
+    // horizontal line
+    ctx.beginPath(); ctx.moveTo(0, screenY + 0.5); ctx.lineTo(w, screenY + 0.5); ctx.stroke()
+    ctx.restore()
+
+    // Draw exact MNI foci above the crosshair for clear, unambiguous locations.
     if (studyPoints.length) {
       const spacing = getVoxelMM()
       const current = axis === 'x'
@@ -382,37 +403,15 @@ const coord2idx = (c_mm, n, axis) => {
           markerX = coord2idx(py, ny, 'y')
           markerY = h - 1 - coord2idx(pz, nz, 'z')
         }
-        ctx.beginPath()
-        ctx.arc(markerX + 0.5, markerY + 0.5, 2.2, 0, Math.PI * 2)
-        ctx.fillStyle = '#00e5ff'
-        ctx.fill()
-        ctx.lineWidth = 1
-        ctx.strokeStyle = '#ffffff'
-        ctx.stroke()
+        const x = markerX + 0.5, y = markerY + 0.5
+        ctx.beginPath(); ctx.arc(x, y, 4.2, 0, Math.PI * 2)
+        ctx.lineWidth = 1.6; ctx.strokeStyle = '#101820'; ctx.stroke()
+        ctx.beginPath(); ctx.arc(x, y, 3.1, 0, Math.PI * 2)
+        ctx.lineWidth = 1.4; ctx.strokeStyle = '#ffffff'; ctx.stroke()
+        ctx.beginPath(); ctx.arc(x, y, 1.8, 0, Math.PI * 2)
+        ctx.fillStyle = '#ffe600'; ctx.fill()
       })
     }
-
-    // draw green crosshairs
-    ctx.save()
-    ctx.strokeStyle = '#00ff00'
-    ctx.lineWidth = 1
-    let cx = 0, cy = 0
-    if (axis === 'z') { // plane: X by Y
-      cx = Math.max(0, Math.min(w-1, (X_RIGHT_ON_SCREEN_RIGHT ? (w - 1 - ix) : ix)))
-      cy = Math.max(0, Math.min(h-1, iy))
-    } else if (axis === 'y') { // plane: X by Z
-      cx = Math.max(0, Math.min(w-1, (X_RIGHT_ON_SCREEN_RIGHT ? (w - 1 - ix) : ix)))
-      cy = Math.max(0, Math.min(h-1, iz))
-    } else { // axis === 'x' (plane: Y by Z)
-      cx = Math.max(0, Math.min(w-1, iy))
-      cy = Math.max(0, Math.min(h-1, iz))
-    }
-    const screenY = h - 1 - cy // account for vertical flip used when drawing
-    // vertical line
-    ctx.beginPath(); ctx.moveTo(cx + 0.5, 0); ctx.lineTo(cx + 0.5, h); ctx.stroke()
-    // horizontal line
-    ctx.beginPath(); ctx.moveTo(0, screenY + 0.5); ctx.lineTo(w, screenY + 0.5); ctx.stroke()
-    ctx.restore()
   }
 
   // click-to-move crosshairs
@@ -581,6 +580,12 @@ const coord2idx = (c_mm, n, axis) => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {studyId && studyPoints.length > 0 && (
+        <div className='nii-viewer__legend' aria-label='Brain map legend'>
+          <span><i className='nii-viewer__legend-point' />Reported MNI coordinate</span>
+          <span><i className='nii-viewer__legend-map' />Smoothed activation map</span>
         </div>
       )}
 
