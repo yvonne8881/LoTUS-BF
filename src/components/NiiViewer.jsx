@@ -22,6 +22,7 @@ export function NiiViewer({ query, studyId = null }) {
   const [loadingMap, setLoadingMap] = useState(false)
   const [errBG, setErrBG] = useState('')
   const [errMap, setErrMap] = useState('')
+  const [studyPoints, setStudyPoints] = useState([])
 
   // backend params (map generation)
   const [voxel] = useState(2.0)
@@ -95,7 +96,10 @@ export function NiiViewer({ query, studyId = null }) {
   function percentile(arr, p, step=Math.ceil(arr.length/200000)) {
     if (!arr.length) return 0
     const samp = []
-    for (let i=0; i<arr.length; i+=step) samp.push(arr[i])
+    // Ignore empty voxels. Including the large zero background made the 95th
+    // percentile equal zero, turning every nonzero voxel into a hard-edged box.
+    for (let i=0; i<arr.length; i+=step) if (arr[i] > 0) samp.push(arr[i])
+    if (!samp.length) return 0
     samp.sort((a,b)=>a-b)
     const k = Math.floor((p/100) * (samp.length - 1))
     return samp[Math.max(0, Math.min(samp.length-1, k))]
@@ -233,6 +237,43 @@ const coord2idx = (c_mm, n, axis) => {
     return () => { alive = false }
   }, [mapUrl])
 
+  // Fetch the exact coordinates for the selected study so the slice views can
+  // show point markers in addition to the smoothed statistical overlay.
+  useEffect(() => {
+    if (!query || studyId == null || studyId === '') {
+      setStudyPoints([])
+      return undefined
+    }
+    const controller = new AbortController()
+    const url = new URL(`/query/${encodeURIComponent(query)}/locations`, window.location.origin)
+    url.searchParams.set('study_id', String(studyId))
+    fetch(url.pathname + url.search, { signal: controller.signal })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`)
+        return Array.isArray(data.results) ? data.results : []
+      })
+      .then((points) => { if (!controller.signal.aborted) setStudyPoints(points) })
+      .catch((error) => { if (error.name !== 'AbortError') console.error('Failed to load study coordinates:', error) })
+    return () => controller.abort()
+  }, [query, studyId])
+
+  // Center all three orthogonal slices on the first reported focus so the
+  // exact coordinate marker is immediately visible after selecting a study.
+  useEffect(() => {
+    if (studyId == null || studyId === '' || !studyPoints.length || !dims[0]) return
+    const point = studyPoints.find((item) => [item.x, item.y, item.z].every((value) => Number.isFinite(Number(value))))
+    if (!point) return
+    const [nx, ny, nz] = dims
+    const nextX = coord2idx(Number(point.x), nx, 'x')
+    const nextY = coord2idx(Number(point.y), ny, 'y')
+    const nextZ = coord2idx(Number(point.z), nz, 'z')
+    setIx(nextX); setIy(nextY); setIz(nextZ)
+    setCx(String(idx2coord(nextX, nx, 'x')))
+    setCy(String(idx2coord(nextY, ny, 'y')))
+    setCz(String(idx2coord(nextZ, nz, 'z')))
+  }, [studyId, studyPoints, dims])
+
   const mapThreshold = useMemo(() => {
     const mv = mapRef.current
     if (!mv) return null
@@ -294,18 +335,62 @@ const coord2idx = (c_mm, n, axis) => {
           let mv = getMap(xx, srcY)
           const raw = mv
           if (useAbs) mv = Math.abs(mv)
-          let pass = (thr == null) ? (mv > 0) : (mv >= thr)
+          const pass = (thr == null) ? (mv > 0) : (mv >= thr)
           if (posOnly && raw <= 0) pass = false
           if (pass) {
-            img.data[p    ] = ((1 - alpha) * img.data[p]     + alpha * R) | 0
-            img.data[p + 1] = ((1 - alpha) * img.data[p + 1] + alpha * G) | 0
-            img.data[p + 2] = ((1 - alpha) * img.data[p + 2] + alpha * B) | 0
+            const max = map?.max ?? 1
+            const intensity = max > thr ? Math.max(0, Math.min(1, (mv - (thr ?? 0)) / (max - (thr ?? 0)))) : 1
+            const voxelAlpha = alpha * (0.2 + 0.8 * intensity)
+            img.data[p    ] = ((1 - voxelAlpha) * img.data[p]     + voxelAlpha * R) | 0
+            img.data[p + 1] = ((1 - voxelAlpha) * img.data[p + 1] + voxelAlpha * G) | 0
+            img.data[p + 2] = ((1 - voxelAlpha) * img.data[p + 2] + voxelAlpha * B) | 0
           }
         }
         p += 4
       }
     }
     ctx.putImageData(img, 0, 0)
+
+    // Draw exact MNI coordinate markers only when a point intersects the
+    // current anatomical slice (within half a voxel).
+    if (studyPoints.length) {
+      const spacing = getVoxelMM()
+      const current = axis === 'x'
+        ? idx2coord(index, nx, 'x')
+        : axis === 'y'
+          ? idx2coord(index, ny, 'y')
+          : idx2coord(index, nz, 'z')
+      studyPoints.forEach((point) => {
+        const px = Number(point.x), py = Number(point.y), pz = Number(point.z)
+        if (![px, py, pz].every(Number.isFinite)) return
+        const planeCoord = axis === 'x' ? px : axis === 'y' ? py : pz
+        const tolerance = (axis === 'x' ? spacing.x : axis === 'y' ? spacing.y : spacing.z) / 2 + 0.01
+        if (Math.abs(planeCoord - current) > tolerance) return
+
+        let markerX, markerY
+        if (axis === 'z') {
+          const pointX = coord2idx(px, nx, 'x')
+          const pointY = coord2idx(py, ny, 'y')
+          markerX = X_RIGHT_ON_SCREEN_RIGHT ? nx - 1 - pointX : pointX
+          markerY = h - 1 - pointY
+        } else if (axis === 'y') {
+          const pointX = coord2idx(px, nx, 'x')
+          const pointZ = coord2idx(pz, nz, 'z')
+          markerX = X_RIGHT_ON_SCREEN_RIGHT ? nx - 1 - pointX : pointX
+          markerY = h - 1 - pointZ
+        } else {
+          markerX = coord2idx(py, ny, 'y')
+          markerY = h - 1 - coord2idx(pz, nz, 'z')
+        }
+        ctx.beginPath()
+        ctx.arc(markerX + 0.5, markerY + 0.5, 2.2, 0, Math.PI * 2)
+        ctx.fillStyle = '#00e5ff'
+        ctx.fill()
+        ctx.lineWidth = 1
+        ctx.strokeStyle = '#ffffff'
+        ctx.stroke()
+      })
+    }
 
     // draw green crosshairs
     ctx.save()
@@ -379,7 +464,7 @@ const coord2idx = (c_mm, n, axis) => {
   }, [
     dims, ix, iy, iz,
     overlayAlpha, posOnly, useAbs, thrMode, pctl, thrValue,
-    loadingBG, loadingMap, errBG, errMap, query
+    loadingBG, loadingMap, errBG, errMap, query, studyPoints
   ])
 
   const hasVolume = dims[0] > 0

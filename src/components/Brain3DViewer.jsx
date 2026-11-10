@@ -76,18 +76,30 @@ export function Brain3DViewer ({ query, studyId = null }) {
         if (!Array.isArray(data.results) || !nvRef.current) return
         setPointCount(data.results.length)
         const nodes = data.results.map((pt, idx) => ({
-          id: idx,
+          name: `MNI ${idx + 1}: ${Number(pt.x).toFixed(1)}, ${Number(pt.y).toFixed(1)}, ${Number(pt.z).toFixed(1)}`,
           x: pt.x,
           y: pt.y,
           z: pt.z,
           colorValue: 1,
-          size: 3.5
+          sizeValue: 1
         }))
-        nvRef.current.loadNodes({
+        // Niivue 0.69 renders point markers through its connectome mesh API;
+        // loadNodes() is not part of this version and silently left the map blank.
+        nvRef.current.loadConnectome({
+          name: 'MNI activation coordinates',
           nodeColormap: 'warm',
+          nodeColormapNegative: 'warm',
           nodeMinColor: 0,
           nodeMaxColor: 1,
-          nodes
+          nodeScale: 8,
+          edgeColormap: 'warm',
+          edgeColormapNegative: 'warm',
+          edgeMin: 0,
+          edgeMax: 1,
+          edgeScale: 0,
+          showLegend: false,
+          nodes,
+          edges: []
         })
       })
       .catch((error) => {
