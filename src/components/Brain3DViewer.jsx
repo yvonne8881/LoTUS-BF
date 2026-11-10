@@ -13,6 +13,7 @@ export function Brain3DViewer ({ query, studyId = null }) {
   const [viewerReady, setViewerReady] = useState(false)
   const [viewerError, setViewerError] = useState('')
   const [pointCount, setPointCount] = useState(0)
+  const [selectedPoint, setSelectedPoint] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -22,6 +23,41 @@ export function Brain3DViewer ({ query, studyId = null }) {
       isOrientCube: true
     })
     nvRef.current = nv
+
+    // Niivue draws connectome nodes as spheres, but its built-in click target
+    // is the legend label. Keep the last 3D projection and use it to map a
+    // click on a sphere back to that node, without drawing labels or leader
+    // lines in the brain view.
+    const drawLabels = nv.draw3DLabels.bind(nv)
+    nv.draw3DLabels = (mvpMatrix, bounds, ...args) => {
+      nv._mniProjection = { mvpMatrix, bounds }
+      return drawLabels(mvpMatrix, bounds, ...args)
+    }
+    const getLabelAtPoint = nv.getLabelAtPoint.bind(nv)
+    nv.getLabelAtPoint = (screenPoint) => {
+      const projection = nv._mniProjection
+      const nodes = nv._mniNodes || []
+      if (projection && nodes.length && typeof nv.calculateScreenPoint === 'function') {
+        const hitRadius = 14 * (nv.uiData?.dpr || 1)
+        let closest = null
+        let closestDistance = hitRadius
+        for (const node of nodes) {
+          const point = nv.calculateScreenPoint(
+            [node.x, node.y, node.z],
+            projection.mvpMatrix,
+            projection.bounds
+          )
+          if (point[2] < 0 || point[2] > 1) continue
+          const distance = Math.hypot(point[0] - screenPoint[0], point[1] - screenPoint[1])
+          if (distance < closestDistance) {
+            closest = node
+            closestDistance = distance
+          }
+        }
+        if (closest?.label) return closest.label
+      }
+      return getLabelAtPoint(screenPoint)
+    }
 
     const initialize = async () => {
       try {
@@ -59,6 +95,7 @@ export function Brain3DViewer ({ query, studyId = null }) {
   useEffect(() => {
     if (!query || !viewerReady || !nvRef.current) {
       setPointCount(0)
+      setSelectedPoint(null)
       return
     }
 
@@ -77,33 +114,43 @@ export function Brain3DViewer ({ query, studyId = null }) {
       .then((data) => {
         if (!Array.isArray(data.results) || !nvRef.current) return
         setPointCount(data.results.length)
+        setSelectedPoint(null)
         const nodes = data.results.map((pt, index) => ({
-          // Numbered labels keep every focus visible and distinguishable in 3D.
-          name: String(index + 1),
+          // Empty names leave only the small coordinate sphere visible.
+          name: '',
           x: pt.x,
           y: pt.y,
           z: pt.z,
           colorValue: 1,
           sizeValue: 1
         }))
-        // Keep the connectome legend enabled: Niivue renders its numbered,
-        // spatially anchored labels and leader marks through this legend layer.
-        nvRef.current.loadConnectome({
+        const nv = nvRef.current
+        nv.loadConnectome({
           name: 'MNI activation coordinates',
           nodeColormap: 'red',
           nodeColormapNegative: 'red',
           nodeMinColor: 0,
           nodeMaxColor: 1,
-          nodeScale: 7,
+          nodeScale: 3,
           edgeColormap: 'red',
           edgeColormapNegative: 'red',
           edgeMin: 0,
           edgeMax: 1,
           edgeScale: 0,
-          showLegend: true,
-          legendLineThickness: 1.2,
+          showLegend: false,
+          legendLineThickness: 0,
           nodes,
           edges: []
+        })
+        const connectome = nv.meshes?.find((mesh) => Array.isArray(mesh.nodes))
+        const connectomeNodes = connectome?.nodes || nodes
+        nv._mniNodes = connectomeNodes
+        connectomeNodes.forEach((node) => {
+          if (node.label) {
+            node.label.onClick = () => {
+              setSelectedPoint({ x: node.x, y: node.y, z: node.z })
+            }
+          }
         })
       })
       .catch((error) => {
@@ -159,6 +206,12 @@ export function Brain3DViewer ({ query, studyId = null }) {
           <button type="button" onClick={(event) => handleZoom(event, 0.8)} title="縮小" aria-label="縮小" disabled={!viewerReady} style={{ width: '28px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.9)', color: '#fff', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'grid', placeItems: 'center' }}>-</button>
           <button type="button" onClick={handleResetZoom} title="重置" disabled={!viewerReady} style={{ padding: '0 8px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.9)', color: '#fff', fontSize: '11px', cursor: 'pointer' }}>重置</button>
         </div>
+      </div>
+
+      <div aria-live="polite" style={{ minHeight: '16px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', fontSize: '11px', color: '#9bb0c0' }}>
+        {selectedPoint
+          ? <span>選取座標：[{selectedPoint.x}, {selectedPoint.y}, {selectedPoint.z}]</span>
+          : <span>點選腦部紅點查看 [x, y, z]</span>}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px' }}>
