@@ -1,58 +1,95 @@
-import React, { useEffect, useState } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, useGLTF } from '@react-three/drei';
+import React, { useEffect, useRef, useState } from 'react'
+import { Niivue } from '@niivue/niivue'
 
-// 半透明的腦殼模型
-function BrainMesh() {
-  // 請確保 public/brain.glb 存在
-  const { scene } = useGLTF('/brain.glb'); 
-  return (
-    <primitive object={scene} opacity={0.3} transparent={true} />
-  );
-}
-
-// 標記點元件
-function MNIPoints({ query }) {
-  const [points, setPoints] = useState([]);
+export function Brain3DViewer ({ query }) {
+  const canvasRef = useRef(null)
+  const nvRef = useRef(null)
+  const [opacity, setOpacity] = useState(0.7)
+  const [loading, setLoading] = useState(false)
+  const [pointCount, setPointCount] = useState(0)
 
   useEffect(() => {
-    if (!query) return;
-    // 呼叫後端 API 取得所有符合該 query 的文獻 MNI 座標
+    const nv = new Niivue({
+      show3Dcrosshair: false,
+      backColor: [0.05, 0.08, 0.12, 1], 
+      isOrientCube: true,  
+    })
+    nvRef.current = nv
+    nv.attachToCanvas(canvasRef.current)
+
+    nv.setSliceType(nv.sliceTypeRender)
+
+    nv.loadVolumes([{ url: '/static/mni_2mm.nii.gz', opacity: 0.7 }]).then(() => {
+      nv.setVolumeRenderIllumination(0.4) // 開啟 3D 光影立體感
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!query || !nvRef.current) return
+    setLoading(true)
+
     fetch(`/query/${encodeURIComponent(query)}/locations`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.results) {
-          setPoints(data.results);
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.results && nvRef.current) {
+          setPointCount(data.results.length)
+          const nodes = data.results.map((pt, idx) => ({
+            id: idx,
+            x: pt.x,
+            y: pt.y,
+            z: pt.z,
+            colorValue: 1,
+            size: 3
+          }))
+
+          nvRef.current.loadNodes({
+            nodeColormap: 'warm',
+            nodeMinColor: 0,
+            nodeMaxColor: 1,
+            nodes: nodes
+          })
         }
       })
-      .catch(err => console.error("Failed to fetch locations:", err));
-  }, [query]);
+      .catch((err) => console.error('Failed to load MNI points:', err))
+      .finally(() => setLoading(false))
+  }, [query])
+
+  const handleOpacityChange = (e) => {
+    const val = parseFloat(e.target.value)
+    setOpacity(val)
+    if (nvRef.current && nvRef.current.volumes.length > 0) {
+      nvRef.current.setOpacity(0, val)
+    }
+  }
 
   return (
-    <group>
-      {points.map((pt, i) => (
-        <mesh key={`${pt.study_id}-${i}`} position={[pt.x, pt.y, pt.z]}>
-          <sphereGeometry args={[1.5, 16, 16]} />
-          <meshStandardMaterial color="#d78c51" emissive="#d78c51" emissiveIntensity={0.5} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: '480px', background: '#0d141f', padding: '16px', borderRadius: '12px', color: '#fff' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ margin: 0, fontSize: '16px' }}>3D 腦影像</h3>
+        {loading && <span style={{ fontSize: '12px', color: '#8da4b5' }}>載入文獻座標中...</span>}
+        {!loading && <span style={{ fontSize: '12px', color: '#8da4b5' }}>共標記 {pointCount} 個 MNI 點位</span>}
+      </div>
 
-export function Brain3DViewer({ query }) {
-  return (
-    <div style={{ width: '100%', height: '100%', minHeight: '400px', background: '#f3f5f7', borderRadius: '9px' }}>
-      <Canvas camera={{ position: [0, 0, 150], fov: 50 }}>
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 10, 10]} intensity={1} />
-        
-        <BrainMesh />
-        <MNIPoints query={query} />
-        
-        {/* OrbitControls 提供滑鼠旋轉與縮放功能 */}
-        <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
-      </Canvas>
+      {/* 3D Canvas 容器 */}
+      <div style={{ flex: 1, position: 'relative', width: '100%', minHeight: '360px', borderRadius: '8px', overflow: 'hidden' }}>
+        <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+      </div>
+
+      {/* 控制面板 */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span>大腦透明度</span>
+          <input
+            type="range"
+            min="0.1"
+            max="1.0"
+            step="0.05"
+            value={opacity}
+            onChange={handleOpacityChange}
+            style={{ flex: 1, accentColor: '#007bff' }}
+          />
+        </label>
+      </div>
     </div>
-  );
+  )
 }
