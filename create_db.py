@@ -251,7 +251,11 @@ def build_annotations(engine: Engine, df: pd.DataFrame, schema: str, batch_cols:
             if not mask.any():
                 continue
             idx = np.nonzero(mask)[0]
-            term = re.sub(r"^terms_[^_]*__", "", str(c)).strip().lower()
+            # Neurosynth annotation columns use the full
+            # `terms_abstract_tfidf__` prefix. Strip it as one unit so the
+            # stored vocabulary contains names such as "ability", not the
+            # raw column name (and so numeric artifact terms can be filtered).
+            term = re.sub(r"^terms_abstract_tfidf__", "", str(c), flags=re.IGNORECASE).strip().lower()
             term_rows.extend(zip(sid_arr[idx], cid_arr[idx], [term]*len(idx), col[idx].astype(float)))
 
         if term_rows:

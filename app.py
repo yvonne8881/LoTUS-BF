@@ -412,20 +412,48 @@ def terms(term: str=None):
     with eng.begin() as conn:
         conn.execute(text("SET search_path TO ns, public;"))
         if not term:
+            prefix = (request.args.get("q") or "").strip().lower()
+            if not prefix:
+                return jsonify({"terms": []}), 200
+
+            limit = request.args.get("limit", 100, type=int)
+            limit = max(1, min(limit, 200))
+
+            def escape_like(value: str) -> str:
+                return value.replace("!", "!!").replace("%", "!%").replace("_", "!_")
+
+            escaped_prefix = escape_like(prefix)
+            query_params = {
+                "raw_pattern": escape_like("terms_abstract_tfidf__" + prefix) + "%",
+                "plain_pattern": escaped_prefix + "%",
+                "limit": limit,
+            }
             sql = text("""
-                SELECT DISTINCT
-                  CASE WHEN key LIKE 'terms_abstract_tfidf__%%'
-                       THEN SUBSTRING(key FROM char_length('terms_abstract_tfidf__')+1)
-                       ELSE key
-                  END AS term
-                FROM (
-                  SELECT jsonb_object_keys(terms) AS key
-                  FROM ns.annotations_json
-                ) j
-                ORDER BY term
+                WITH normalized_terms AS (
+                  SELECT
+                    study_id,
+                    CASE WHEN term LIKE 'terms_abstract_tfidf__%%'
+                         THEN SUBSTRING(term FROM char_length('terms_abstract_tfidf__') + 1)
+                         ELSE term
+                    END AS display_term
+                  FROM ns.annotations_terms
+                  WHERE term LIKE :raw_pattern ESCAPE '!'
+                     OR term LIKE :plain_pattern ESCAPE '!'
+                )
+                SELECT display_term AS term, COUNT(DISTINCT study_id) AS study_count
+                FROM normalized_terms
+                WHERE display_term <> ''
+                  AND display_term !~ '^[[:digit:]]'
+                GROUP BY display_term
+                ORDER BY display_term
+                LIMIT :limit
             """)
-            rows = conn.execute(sql).fetchall()
-            terms = [r.term for r in rows if not re.match(r'^\d', (r.term or ""))]
+            rows = conn.execute(sql, query_params).fetchall()
+            terms = [
+                {"term": r.term, "study_count": int(r.study_count)}
+                for r in rows
+                if not re.match(r'^\d', (r.term or ""))
+            ]
             return jsonify({"terms": terms}), 200
         else:
             limit, offset = _limit_offset()

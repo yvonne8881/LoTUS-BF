@@ -131,7 +131,7 @@ export function Brain3DViewer ({ query, studyId = null }) {
           nodeColormapNegative: 'red',
           nodeMinColor: 0,
           nodeMaxColor: 1,
-          nodeScale: 3,
+          nodeScale: 5,
           edgeColormap: 'red',
           edgeColormapNegative: 'red',
           edgeMin: 0,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export function Terms ({ onPickTerm }) {
   const [terms, setTerms] = useState([])
@@ -7,39 +7,49 @@ export function Terms ({ onPickTerm }) {
   const [err, setErr] = useState('')
 
   useEffect(() => {
-    let alive = true
-    const ac = new AbortController()
-    const load = async () => {
+    const prefix = search.trim().toLowerCase()
+    if (!prefix) {
+      setTerms([])
+      setErr('')
+      setLoading(false)
+      return undefined
+    }
+
+    const controller = new AbortController()
+    const debounce = window.setTimeout(async () => {
       setLoading(true)
       setErr('')
       try {
-        const res = await fetch('/terms', { signal: ac.signal })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const data = await res.json()
-        if (!alive) return
+        const params = new URLSearchParams({ q: prefix, limit: '100' })
+        const response = await fetch(`/terms?${params}`, { signal: controller.signal })
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const data = await response.json()
+        if (controller.signal.aborted) return
         const items = Array.isArray(data?.terms) ? data.terms : []
         setTerms(items.map((item) => typeof item === 'string'
-          ? { term: item, study_count: null }
+          ? { term: item, studyCount: null }
           : {
               term: String(item?.term ?? ''),
-              study_count: Number.isFinite(Number(item?.study_count)) ? Number(item.study_count) : null
-            }).filter((item) => item.term))
-      } catch (e) {
-        if (!alive) return
-        setErr(`Failed to fetch terms: ${e?.message || e}`)
+              studyCount: item?.study_count == null ? null : Number(item.study_count)
+            }).filter((item) => item.term && (item.studyCount == null || Number.isFinite(item.studyCount))))
+      } catch (error) {
+        if (error.name !== 'AbortError') setErr(`Failed to fetch terms: ${error?.message || error}`)
       } finally {
-        if (alive) setLoading(false)
+        if (!controller.signal.aborted) setLoading(false)
       }
-    }
-    load()
-    return () => { alive = false; ac.abort() }
-  }, [])
+    }, 180)
 
-  const filtered = useMemo(() => {
-    const s = search.trim().toLowerCase()
-    if (!s) return terms
-    return terms.filter(({ term }) => term.toLowerCase().includes(s))
-  }, [terms, search])
+    return () => {
+      window.clearTimeout(debounce)
+      controller.abort()
+    }
+  }, [search])
+
+  const handlePick = (term) => {
+    onPickTerm?.(term)
+    setSearch('')
+    setTerms([])
+  }
 
   return (
     <div className='terms'>
@@ -47,10 +57,11 @@ export function Terms ({ onPickTerm }) {
         <input
           type='search'
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder='Find a term to add'
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder='Type to find a term (e.g. ability)'
           aria-label='Search terms'
           className='input'
+          autoComplete='off'
         />
         <button
           type='button'
@@ -63,33 +74,31 @@ export function Terms ({ onPickTerm }) {
       </div>
 
       {loading && (
-        <div className='terms__skeleton'>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className='terms__skeleton-row' />
+        <div className='terms__skeleton' aria-live='polite'>
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className='terms__skeleton-row' />
           ))}
         </div>
       )}
 
-      {err && (
-        <div className='alert alert--error'>
-          {err}
-        </div>
-      )}
+      {err && <div className='alert alert--error'>{err}</div>}
 
       {!loading && !err && (
-        <div className='terms__list'>
-          {filtered.length === 0 ? (
-            <div className='terms__empty'>{search ? 'No matching terms. Try another keyword.' : 'No terms available.'}</div>
+        <div className='terms__list' aria-live='polite'>
+          {!search.trim() ? (
+            <div className='terms__empty'>Start typing to see matching terms.</div>
+          ) : terms.length === 0 ? (
+            <div className='terms__empty'>No matching terms.</div>
           ) : (
             <ul className='terms__ul'>
-              {filtered.slice(0, 500).map(({ term, study_count: studyCount }, idx) => (
-                <li key={`${term}-${idx}`} className='terms__li'>
+              {terms.map(({ term, studyCount }) => (
+                <li key={term} className='terms__li'>
                   <button
                     type='button'
                     className='terms__name'
-                    title={`Add ${term} to the query${studyCount == null ? '' : ` · appears in ${studyCount.toLocaleString()} studies`}`}
+                    title={`Add ${term} to the query`}
                     aria-label={`Add term ${term} to query${studyCount == null ? '' : `, appears in ${studyCount.toLocaleString()} studies`}`}
-                    onClick={() => onPickTerm?.(term)}
+                    onClick={() => handlePick(term)}
                   >
                     <span>{term}</span>
                     {studyCount != null && <span className='terms__count'>({studyCount.toLocaleString()})</span>}
@@ -103,4 +112,3 @@ export function Terms ({ onPickTerm }) {
     </div>
   )
 }
-

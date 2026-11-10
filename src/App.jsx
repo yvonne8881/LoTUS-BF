@@ -73,10 +73,7 @@ export default function App () {
     const values = [coordinateFields.x, coordinateFields.y, coordinateFields.z].map(Number)
     if (values.some((value) => !Number.isFinite(value))) return
     const coordinateQuery = `[${values.join(', ')}]`
-    setDraftQuery(coordinateQuery)
-    setSelectedStudyId('')
-    setSelectedStudy(null)
-    setQuery(coordinateQuery)
+    setDraftQuery((current) => current.trim() ? `${current.trim()} ${coordinateQuery}` : coordinateQuery)
   }
 
   useEffect(() => {
@@ -388,15 +385,21 @@ export default function App () {
 
       <main className="app__grid" ref={gridRef}>
         <section className="card card--terms" style={{ flexBasis: `${sizes[0]}%` }} aria-labelledby="terms-heading">
-          <div className="panel-heading">
-            <div>
-              <h2 className="card__title" id="terms-heading">Terms</h2>
-              <p className="card__description">Browse concepts and add them to your query.</p>
+          <div className="terms-panel">
+            <div className="panel-heading">
+              <div>
+                <h2 className="card__title" id="terms-heading">Terms</h2>
+                <p className="card__description">Type a word prefix to find and add a term.</p>
+              </div>
             </div>
+            <Terms onPickTerm={handlePickTerm} />
           </div>
+
           <form className="coordinate-search" onSubmit={handleCoordinateSearch}>
-            <h3>Search by MNI coordinates</h3>
-            <p>Enter a point in millimeters to find nearby studies.</p>
+            <div className="coordinate-search__heading">
+              <h3>Search by MNI coordinates</h3>
+              <p>Enter a point and add it to the query above.</p>
+            </div>
             <div className="coordinate-search__fields">
               {['x', 'y', 'z'].map((axis) => (
                 <label key={axis}>
@@ -412,9 +415,8 @@ export default function App () {
                 </label>
               ))}
             </div>
-            <button type="submit">Search coordinates</button>
+            <button type="submit">Add coordinates to query</button>
           </form>
-          <Terms onPickTerm={handlePickTerm} />
         </section>
 
         <div
