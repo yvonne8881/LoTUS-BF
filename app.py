@@ -413,17 +413,19 @@ def terms(term: str=None):
         conn.execute(text("SET search_path TO ns, public;"))
         if not term:
             sql = text("""
-                SELECT term, COUNT(DISTINCT study_id) AS study_count
-                FROM ns.annotations_terms
-                GROUP BY term
+                SELECT DISTINCT
+                  CASE WHEN key LIKE 'terms_abstract_tfidf__%%'
+                       THEN SUBSTRING(key FROM char_length('terms_abstract_tfidf__')+1)
+                       ELSE key
+                  END AS term
+                FROM (
+                  SELECT jsonb_object_keys(terms) AS key
+                  FROM ns.annotations_json
+                ) j
                 ORDER BY term
             """)
             rows = conn.execute(sql).fetchall()
-            terms = [
-                {"term": r.term, "study_count": int(r.study_count)}
-                for r in rows
-                if not re.match(r'^\d', (r.term or ""))
-            ]
+            terms = [r.term for r in rows if not re.match(r'^\d', (r.term or ""))]
             return jsonify({"terms": terms}), 200
         else:
             limit, offset = _limit_offset()
