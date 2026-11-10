@@ -32,6 +32,9 @@ function readSearchHistory () {
 
 export default function App () {
   const [query, setQuery] = useUrlQueryState('q')
+  const [draftQuery, setDraftQuery] = useState(query)
+  const [selectedStudyId, setSelectedStudyId] = useState('')
+  const [coordinateFields, setCoordinateFields] = useState({ x: '', y: '', z: '' })
   const research = useResearchWorkspace()
   const { ready: workspaceReady, user: accountUser, workspaceState, saveWorkspaceState } = research
   const [searchHistory, setSearchHistory] = useState(readSearchHistory)
@@ -42,8 +45,34 @@ export default function App () {
   const [viewerMode, setViewerMode] = useState('2d');
   const [hasEntered, setHasEntered] = useState(false)
   const handlePickTerm = useCallback((term) => {
-    setQuery((current) => (current ? `${current} ${term}` : term))
+    setDraftQuery((current) => (current ? `${current} ${term}` : term))
+  }, [])
+
+  useEffect(() => {
+    setDraftQuery(query)
+    setSelectedStudyId('')
+  }, [query])
+
+  const handleSearch = useCallback(() => {
+    setSelectedStudyId('')
+    setQuery(draftQuery.trim())
+  }, [draftQuery, setQuery])
+
+  const handleClearQuery = useCallback(() => {
+    setDraftQuery('')
+    setSelectedStudyId('')
+    setQuery('')
   }, [setQuery])
+
+  const handleCoordinateSearch = (event) => {
+    event.preventDefault()
+    const values = [coordinateFields.x, coordinateFields.y, coordinateFields.z].map(Number)
+    if (values.some((value) => !Number.isFinite(value))) return
+    const coordinateQuery = `[${values.join(', ')}]`
+    setDraftQuery(coordinateQuery)
+    setSelectedStudyId('')
+    setQuery(coordinateQuery)
+  }
 
   useEffect(() => {
     try {
@@ -140,8 +169,8 @@ export default function App () {
     setSizes(next)
   }
 
-  const saveCurrentSearch = () => {
-    const currentQuery = query.trim()
+  const saveCurrentSearch = (queryToSave = query) => {
+    const currentQuery = String(queryToSave || '').trim()
     if (!currentQuery) return
 
     const record = {
@@ -360,6 +389,26 @@ export default function App () {
               <p className="card__description">Browse concepts and add them to your query.</p>
             </div>
           </div>
+          <form className="coordinate-search" onSubmit={handleCoordinateSearch}>
+            <h3>Search by MNI coordinates</h3>
+            <p>Enter a point in millimeters to find nearby studies.</p>
+            <div className="coordinate-search__fields">
+              {['x', 'y', 'z'].map((axis) => (
+                <label key={axis}>
+                  <span>{axis.toUpperCase()} (mm)</span>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    value={coordinateFields[axis]}
+                    onChange={(event) => setCoordinateFields((current) => ({ ...current, [axis]: event.target.value }))}
+                    aria-label={`${axis.toUpperCase()} MNI coordinate in millimeters`}
+                  />
+                </label>
+              ))}
+            </div>
+            <button type="submit">Search coordinates</button>
+          </form>
           <Terms onPickTerm={handlePickTerm} />
         </section>
 
@@ -382,10 +431,19 @@ export default function App () {
         />
 
         <section className="card card--stack card--results" style={{ flexBasis: `${sizes[1]}%` }} aria-labelledby="query-heading">
-          <QueryBuilder query={query} setQuery={setQuery} onSaveHistory={saveCurrentSearch} />
+          <QueryBuilder
+            query={query}
+            draftQuery={draftQuery}
+            setDraftQuery={setDraftQuery}
+            onSearch={handleSearch}
+            onClear={handleClearQuery}
+            onSaveHistory={saveCurrentSearch}
+          />
           <div className="divider" />
           <Studies
             query={query}
+            selectedStudyId={selectedStudyId}
+            onSelectStudy={(study) => setSelectedStudyId(study?.study_id == null ? '' : String(study.study_id))}
             user={research.user}
             groups={research.groups}
             notesByStudy={research.notesByStudy}
@@ -417,13 +475,13 @@ export default function App () {
 
     <section className="card card--viewer" style={{ flexBasis: `${sizes[2]}%` }} aria-label="Brain map viewer">
        {/* 2D 切片 */}
-       <NiiViewer query={query} />
+       <NiiViewer query={query} studyId={selectedStudyId || null} />
 
        {/* 分隔線 */}
         <div className="divider" />
 
         {/* 3D 腦影像 */}
-      <Brain3DViewer query={query} />
+      <Brain3DViewer query={query} studyId={selectedStudyId || null} />
     </section>
       </main>
       <footer className="app__footer">

@@ -4,7 +4,7 @@ import { Niivue } from '@niivue/niivue'
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 4
 
-export function Brain3DViewer ({ query }) {
+export function Brain3DViewer ({ query, studyId = null }) {
   const canvasRef = useRef(null)
   const nvRef = useRef(null)
   const zoomRef = useRef(1)
@@ -63,7 +63,10 @@ export function Brain3DViewer ({ query }) {
     const controller = new AbortController()
     setLoading(true)
 
-    fetch(`/query/${encodeURIComponent(query)}/locations`, { signal: controller.signal })
+    const locationsUrl = new URL(`/query/${encodeURIComponent(query)}/locations`, window.location.origin)
+    if (studyId != null && studyId !== '') locationsUrl.searchParams.set('study_id', String(studyId))
+
+    fetch(locationsUrl.pathname + locationsUrl.search, { signal: controller.signal })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}))
         if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`)
@@ -95,7 +98,7 @@ export function Brain3DViewer ({ query }) {
       })
 
     return () => controller.abort()
-  }, [query, viewerReady])
+  }, [query, studyId, viewerReady])
 
   const handleOpacityChange = (event) => {
     const value = Number.parseFloat(event.target.value)
@@ -124,7 +127,7 @@ export function Brain3DViewer ({ query }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: '13px' }}>3D 腦影像</h3>
         {loading && <span style={{ fontSize: '11px', color: '#8da4b5' }}>載入座標中...</span>}
-        {!loading && <span style={{ fontSize: '11px', color: '#8da4b5' }}>共標記 {pointCount} 個 MNI 點位</span>}
+        {!loading && <span style={{ fontSize: '11px', color: '#8da4b5' }}>{studyId ? `Study ${studyId} · ${pointCount} 個 MNI 點位` : `共標記 ${pointCount} 個 MNI 點位`}</span>}
       </div>
 
       <div style={{ flex: '1', position: 'relative', width: '100%', height: '200px', borderRadius: '8px', overflow: 'hidden' }}>

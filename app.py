@@ -634,11 +634,14 @@ def mixed_query_nii(query_string: str):
     fwhm   = request.args.get("fwhm",  default=10.0, type=float)
     kernel = request.args.get("kernel", default="gauss", type=str).lower()
     r      = request.args.get("r",      default=6.0,  type=float)
+    selected_study_id = request.args.get("study_id")
     eng = get_engine()
     with eng.begin() as conn:
         conn.execute(text("SET search_path TO ns, public;"))
         try:
-            coords_by_study = _collect_coords_for_mixed(conn, query_string, r=r)
+            coords_by_study = _collect_coords_for_mixed(
+                conn, query_string, r=r, selected_study_id=selected_study_id
+            )
             path, n = _make_nii_from_coords(coords_by_study, voxel=voxel, fwhm=fwhm, kernel=kernel)
         except Exception as e:
             return jsonify({"error": str(e)}), 400

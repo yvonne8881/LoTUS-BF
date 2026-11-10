@@ -155,6 +155,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .terms__empty, .terms__skeleton, .alert { padding: 12px; color: var(--muted); font-size: 12px; }
 .terms__skeleton-row { height: 34px; margin: 7px 0; border-radius: 8px; background: linear-gradient(90deg, #f2f5f8, #e8eef3, #f2f5f8); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 .alert--error { margin: 6px 0; border: 1px solid #f0d6d3; border-radius: 9px; background: #fff5f4; color: var(--danger); }
+.coordinate-search { display: grid; gap: 8px; margin: 0 0 12px; padding: 11px; border: 1px solid var(--line); border-radius: 11px; background: #fbfcfe; }
+.coordinate-search h3 { margin: 0; color: #40566b; font-size: 11px; }
+.coordinate-search p { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.4; }
+.coordinate-search__fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.coordinate-search__fields label { display: grid; min-width: 0; gap: 4px; color: #718195; font-size: 8px; font-weight: 700; }
+.coordinate-search__fields input { width: 100%; min-height: 31px !important; padding: 5px 6px !important; font-size: 10px !important; }
+.coordinate-search > button { min-height: 32px; border: 1px solid var(--primary); border-radius: 7px; background: var(--primary); color: #fff; font-size: 10px; font-weight: 750; }
+.coordinate-search > button:hover { background: var(--primary-dark); }
 
 /* Query and studies */
 .qb { display: flex; flex-direction: column; gap: 11px; }
@@ -166,6 +174,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .qb__toolbar button:hover { border-color: #b7cbd8; background: var(--primary-soft); }
 .qb__toolbar .qb__save { margin-left: auto; border-color: var(--primary); background: var(--primary); color: #fff; }
 .qb__toolbar .qb__save:hover:not(:disabled) { border-color: var(--primary-dark); background: var(--primary-dark); }
+.qb__toolbar .qb__search { border-color: var(--primary); background: var(--primary); color: #fff; }
+.qb__toolbar .qb__search:hover:not(:disabled) { border-color: var(--primary-dark); background: var(--primary-dark); }
+.qb__toolbar .qb__search:disabled { opacity: .5; cursor: not-allowed; }
 .qb__toolbar .qb__clear { margin-left: 0; border-color: transparent; background: transparent; color: #6d7d8e; font-weight: 600; }
 .qb__toolbar .qb__clear:hover:not(:disabled) { background: #f2f5f8; }
 .studies { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: #fff; }

@@ -1,10 +1,10 @@
-export function QueryBuilder ({ query, setQuery, onSaveHistory }) {
-  const append = (token) => setQuery((current) => (current ? `${current} ${token}` : token))
+export function QueryBuilder ({ draftQuery, setDraftQuery, query, onSearch, onClear, onSaveHistory }) {
+  const append = (token) => setDraftQuery((current) => (current ? `${current} ${token}` : token))
 
   const handleKeyDown = (event) => {
     if (event.key === 'Enter') {
       event.preventDefault()
-      setQuery(event.currentTarget.value)
+      onSearch()
     }
   }
 
@@ -15,11 +15,15 @@ export function QueryBuilder ({ query, setQuery, onSaveHistory }) {
           <h2 className="card__title" id="query-heading">Build a query</h2>
           <p className="card__description">Combine terms and coordinates to explore related studies.</p>
         </div>
-        {query && <span className="studies__count" aria-live="polite">Query active</span>}
+        {(query || draftQuery.trim()) && (
+          <span className="studies__count" aria-live="polite">
+            {!draftQuery.trim() && query ? 'Clear query to reset results' : draftQuery.trim() === query.trim() ? 'Query active' : 'Press Search to run'}
+          </span>
+        )}
       </div>
       <input
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        value={draftQuery}
+        onChange={(event) => setDraftQuery(event.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="e.g. [−22, −4, 18] AND emotion"
         className="qb__input"
@@ -35,10 +39,13 @@ export function QueryBuilder ({ query, setQuery, onSaveHistory }) {
             {token}
           </button>
         ))}
-        <button className="qb__save" type="button" onClick={onSaveHistory} disabled={!query.trim()}>
+        <button className="qb__search" type="button" onClick={onSearch} disabled={!draftQuery.trim()}>
+          Search
+        </button>
+        <button className="qb__save" type="button" onClick={() => onSaveHistory(draftQuery)} disabled={!draftQuery.trim()}>
           Save history
         </button>
-        <button className="qb__clear" type="button" onClick={() => setQuery('')} disabled={!query}>Clear query</button>
+        <button className="qb__clear" type="button" onClick={onClear} disabled={!draftQuery && !query}>Clear query</button>
       </div>
     </div>
   )

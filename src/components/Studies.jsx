@@ -203,6 +203,7 @@ function GroupMembershipNote ({ membership, onSave, onRemove }) {
 
 export function Studies ({
   query, user, groups = [], notesByStudy = {}, membershipsByStudy = {},
+  selectedStudyId, onSelectStudy,
   onSaveNote, onAddPaperToGroup, onUpdateGroupNote, onRemovePaperFromGroup, onManageGroups
 }) {
   const [rows, setRows] = useState([])
@@ -553,10 +554,10 @@ export function Studies ({
                     <tr
                       key={r.study_id ?? `${r.title}-${i}`}
                       className={classNames(
-                        selectedStudy?.study_id === r.study_id && 'study-row--selected',
+                        String(selectedStudyId ?? selectedStudy?.study_id ?? '') === String(r.study_id ?? '') && selectedStudyId != null && selectedStudyId !== '' && 'study-row--selected',
                         i % 2 ? 'bg-white' : 'bg-gray-50'
                       )}
-                      aria-selected={selectedStudy?.study_id === r.study_id}
+                      aria-selected={String(selectedStudyId ?? '') === String(r.study_id ?? '') && selectedStudyId != null && selectedStudyId !== ''}
                     >
                       <td className='studies__check-cell'>
                         <input type='checkbox' checked={selectedIds.has(studyKey)} onChange={() => toggleSelected(r)} aria-label={`Select ${r.title || 'study'}`} />
@@ -577,14 +578,18 @@ export function Studies ({
                           <button
                             className='study-title-button'
                             type='button'
-                            aria-expanded={selectedStudy?.study_id === r.study_id}
-                            onClick={() => setSelectedStudy((current) => current?.study_id === r.study_id ? null : r)}
+                            aria-expanded={String(selectedStudyId ?? '') === String(r.study_id ?? '') && selectedStudyId != null && selectedStudyId !== ''}
+                            onClick={() => {
+                              const next = String(selectedStudyId ?? '') === String(r.study_id ?? '') ? null : r
+                              setSelectedStudy(next)
+                              onSelectStudy?.(next)
+                            }}
                           >
                             <HighlightText text={r.title || ''} terms={highlightTerms} />
                           </button>
                           {r.study_id != null && (
                             <span className='study-title-actions'>
-                              <span>{selectedStudy?.study_id === r.study_id ? 'Details shown below' : 'Click title to view details'}</span>
+                              <span>{String(selectedStudyId ?? '') === String(r.study_id ?? '') ? 'Showing this study on the brain map' : 'Click title to view details and coordinates'}</span>
                               {pubMedUrl && (
                                 <a className='study-title-link' href={pubMedUrl} target='_blank' rel='noopener noreferrer' aria-label={hasPmid ? `Open ${r.title} in PubMed` : `Search PubMed for ${r.title}`} title={hasPmid ? 'Open this article in PubMed' : 'Search PubMed for this title'}>
                                   PubMed ↗
@@ -611,7 +616,7 @@ export function Studies ({
         <div className='study-details' aria-live='polite'>
           <div className='study-details__header'>
             <div><h3>Study details</h3><p>{selectedStudy.title || `Study ${selectedStudy.study_id}`}</p></div>
-            <button type='button' className='study-details__close' onClick={() => setSelectedStudy(null)} aria-label='Close details'>×</button>
+            <button type='button' className='study-details__close' onClick={() => { setSelectedStudy(null); onSelectStudy?.(null) }} aria-label='Close details'>×</button>
           </div>
           <div className='study-details__identifiers'>
               {selectedPmid && <a href={`https://pubmed.ncbi.nlm.nih.gov/${selectedPmid}/`} target='_blank' rel='noopener noreferrer'>PMID: {selectedPmid} ↗</a>}

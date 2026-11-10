@@ -209,7 +209,7 @@ def build_annotations(engine: Engine, df: pd.DataFrame, schema: str, batch_cols:
     with engine.begin() as conn:
         conn.execute(text(f"DROP TABLE IF EXISTS {schema}.annotations_terms CASCADE;"))
         conn.execute(text(f"""
-            CREATE UNLOGGED TABLE {schema}.annotations_terms (
+            CREATE TABLE {schema}.annotations_terms (
                 study_id    TEXT NOT NULL,
                 contrast_id TEXT,
                 term        TEXT NOT NULL,
@@ -271,8 +271,10 @@ def build_annotations(engine: Engine, df: pd.DataFrame, schema: str, batch_cols:
 
         if enable_json:
             print("→ annotations_json: aggregating (this may take a while)")
-            conn.execute(text("SET LOCAL work_mem = '512MB';"))
-            conn.execute(text("SET LOCAL maintenance_work_mem = '1GB';"))
+            # Keep memory use within the limits of small hosted Postgres plans.
+            # A lower work_mem allows PostgreSQL to spill large aggregates to disk.
+            conn.execute(text("SET LOCAL work_mem = '32MB';"))
+            conn.execute(text("SET LOCAL maintenance_work_mem = '128MB';"))
             conn.execute(text(f"""
                 INSERT INTO {schema}.annotations_json (study_id, contrast_id, terms)
                 SELECT study_id, contrast_id, jsonb_object_agg(term, weight)

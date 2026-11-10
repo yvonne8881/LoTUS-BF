@@ -42,7 +42,7 @@ export function Terms ({ onPickTerm }) {
           type='search'
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder='Search the term library'
+          placeholder='Find a term to add'
           aria-label='Search terms'
           className='input'
         />

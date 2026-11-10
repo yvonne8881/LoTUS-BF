@@ -17,7 +17,7 @@ function isStandardMNI2mm(dims, voxelMM) {
 // x = -2*i + 90;  y = 2*j - 126;  z = 2*k - 72
 const MNI2MM = { x0: 90, y0: -126, z0: -72, vx: 2, vy: 2, vz: 2 };
 
-export function NiiViewer({ query }) {
+export function NiiViewer({ query, studyId = null }) {
   const [loadingBG, setLoadingBG] = useState(false)
   const [loadingMap, setLoadingMap] = useState(false)
   const [errBG, setErrBG] = useState('')
@@ -65,8 +65,9 @@ export function NiiViewer({ query }) {
     u.searchParams.set('fwhm', String(fwhm))
     u.searchParams.set('kernel', String(kernel))
     u.searchParams.set('r', String(r))
+    if (studyId != null && studyId !== '') u.searchParams.set('study_id', String(studyId))
     return u.pathname + u.search
-  }, [query, voxel, fwhm, kernel, r])
+  }, [query, studyId, voxel, fwhm, kernel, r])
 
   // ---------- utils ----------
   function asTypedArray (header, buffer) {
@@ -399,7 +400,7 @@ const coord2idx = (c_mm, n, axis) => {
       <div className='nii-viewer__header'>
         <div>
           <h2 className='card__title'>Brain map</h2>
-          <p className='card__description'>Explore the activation map across three anatomical views.</p>
+          <p className='card__description'>{studyId ? `Showing MNI coordinates for study ${studyId}.` : 'Explore the activation map across three anatomical views.'}</p>
         </div>
         {query && <a href={mapUrl} className='nii-viewer__download'>Download map</a>}
       </div>
