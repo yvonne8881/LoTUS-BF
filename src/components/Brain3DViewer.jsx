@@ -11,16 +11,15 @@ export function Brain3DViewer ({ query }) {
   useEffect(() => {
     const nv = new Niivue({
       show3Dcrosshair: false,
-      backColor: [0.05, 0.08, 0.12, 1], 
-      isOrientCube: true,  
+      backColor: [0.05, 0.08, 0.12, 1],
+      isOrientCube: true,
     })
     nvRef.current = nv
     nv.attachToCanvas(canvasRef.current)
-
     nv.setSliceType(nv.sliceTypeRender)
 
     nv.loadVolumes([{ url: '/static/mni_2mm.nii.gz', opacity: 0.7 }]).then(() => {
-      nv.setVolumeRenderIllumination(0.4) // 開啟 3D 光影立體感
+      nv.setVolumeRenderIllumination(0.4)
     })
   }, [])
 
@@ -41,7 +40,6 @@ export function Brain3DViewer ({ query }) {
             colorValue: 1,
             size: 3
           }))
-
           nvRef.current.loadNodes({
             nodeColormap: 'warm',
             nodeMinColor: 0,
@@ -63,32 +61,30 @@ export function Brain3DViewer ({ query }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: '480px', background: '#0d141f', padding: '16px', borderRadius: '12px', color: '#fff' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '300px', background: '#0d141f', padding: '12px', borderRadius: '12px', color: '#fff' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0, fontSize: '16px' }}>3D 腦影像</h3>
-        {loading && <span style={{ fontSize: '12px', color: '#8da4b5' }}>載入文獻座標中...</span>}
-        {!loading && <span style={{ fontSize: '12px', color: '#8da4b5' }}>共標記 {pointCount} 個 MNI 點位</span>}
+        <h3 style={{ margin: 0, fontSize: '13px' }}>3D 腦影像</h3>
+        {loading && <span style={{ fontSize: '11px', color: '#8da4b5' }}>載入座標中...</span>}
+        {!loading && <span style={{ fontSize: '11px', color: '#8da4b5' }}>共標記 {pointCount} 個 MNI 點位</span>}
       </div>
 
-      {/* 3D Canvas 容器 */}
-      <div style={{ flex: 1, position: 'relative', width: '100%', minHeight: '360px', borderRadius: '8px', overflow: 'hidden' }}>
+      {/* 3D Canvas 容器：固定高度 200px */}
+      <div style={{ flex: '1', position: 'relative', width: '100%', height: '200px', borderRadius: '8px', overflow: 'hidden' }}>
         <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
       </div>
 
       {/* 控制面板 */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span>大腦透明度</span>
-          <input
-            type="range"
-            min="0.1"
-            max="1.0"
-            step="0.05"
-            value={opacity}
-            onChange={handleOpacityChange}
-            style={{ flex: 1, accentColor: '#007bff' }}
-          />
-        </label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px' }}>
+        <span>大腦透明度</span>
+        <input
+          type="range"
+          min="0.1"
+          max="1.0"
+          step="0.05"
+          value={opacity}
+          onChange={handleOpacityChange}
+          style={{ flex: 1, accentColor: '#007bff' }}
+        />
       </div>
     </div>
   )

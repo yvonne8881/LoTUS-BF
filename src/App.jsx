@@ -415,22 +415,16 @@ export default function App () {
           }}
         />
 
-        <section className="card card--viewer" style={{ flexBasis: `${sizes[2]}%` }} aria-label="Brain map viewer">
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-            <button onClick={() => setViewerMode('2d')} style={{ fontWeight: viewerMode === '2d' ? 'bold' : 'normal' }}>
-              2D Slices
-          </button>
-          <button onClick={() => setViewerMode('3d')} style={{ fontWeight: viewerMode === '3d' ? 'bold' : 'normal' }}>
-              3D Rotatable
-          </button>
-         </div>
-  
-        {viewerMode === '2d' ? (
-          <NiiViewer query={query} />
-         ) : (
-          <Brain3DViewer query={query} />
-        )}
-        </section>
+    <section className="card card--viewer" style={{ flexBasis: `${sizes[2]}%` }} aria-label="Brain map viewer">
+       {/* 2D 切片 */}
+       <NiiViewer query={query} />
+
+       {/* 分隔線 */}
+        <div className="divider" />
+
+        {/* 3D 腦影像 */}
+      <Brain3DViewer query={query} />
+    </section>
       </main>
       <footer className="app__footer">
         <span>LoTUS-BF</span><span className="footer-separator">·</span>
