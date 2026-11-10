@@ -17,7 +17,13 @@ export function Terms ({ onPickTerm }) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
         if (!alive) return
-        setTerms(Array.isArray(data?.terms) ? data.terms : [])
+        const items = Array.isArray(data?.terms) ? data.terms : []
+        setTerms(items.map((item) => typeof item === 'string'
+          ? { term: item, study_count: null }
+          : {
+              term: String(item?.term ?? ''),
+              study_count: Number.isFinite(Number(item?.study_count)) ? Number(item.study_count) : null
+            }).filter((item) => item.term))
       } catch (e) {
         if (!alive) return
         setErr(`Failed to fetch terms: ${e?.message || e}`)
@@ -32,7 +38,7 @@ export function Terms ({ onPickTerm }) {
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase()
     if (!s) return terms
-    return terms.filter(t => t.toLowerCase().includes(s))
+    return terms.filter(({ term }) => term.toLowerCase().includes(s))
   }, [terms, search])
 
   return (
@@ -76,16 +82,17 @@ export function Terms ({ onPickTerm }) {
             <div className='terms__empty'>{search ? 'No matching terms. Try another keyword.' : 'No terms available.'}</div>
           ) : (
             <ul className='terms__ul'>
-              {filtered.slice(0, 500).map((t, idx) => (
-                <li key={`${t}-${idx}`} className='terms__li'>
+              {filtered.slice(0, 500).map(({ term, study_count: studyCount }, idx) => (
+                <li key={`${term}-${idx}`} className='terms__li'>
                   <button
                     type='button'
                     className='terms__name'
-                    title={`Add ${t} to the query`}
-                    aria-label={`Add term ${t} to query`}
-                    onClick={() => onPickTerm?.(t)}
+                    title={`Add ${term} to the query${studyCount == null ? '' : ` · appears in ${studyCount.toLocaleString()} studies`}`}
+                    aria-label={`Add term ${term} to query${studyCount == null ? '' : `, appears in ${studyCount.toLocaleString()} studies`}`}
+                    onClick={() => onPickTerm?.(term)}
                   >
-                    {t}
+                    <span>{term}</span>
+                    {studyCount != null && <span className='terms__count'>({studyCount.toLocaleString()})</span>}
                   </button>
                 </li>
               ))}
