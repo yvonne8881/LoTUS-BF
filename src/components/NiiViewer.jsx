@@ -335,7 +335,7 @@ const coord2idx = (c_mm, n, axis) => {
           let mv = getMap(xx, srcY)
           const raw = mv
           if (useAbs) mv = Math.abs(mv)
-          const pass = (thr == null) ? (mv > 0) : (mv >= thr)
+          let pass = (thr == null) ? (mv > 0) : (mv >= thr)
           if (posOnly && raw <= 0) pass = false
           if (pass) {
             const max = map?.max ?? 1
