@@ -482,21 +482,27 @@ export default function App () {
         />
 
     <section className="card card--viewer" style={{ flexBasis: `${sizes[2]}%` }} aria-label="Brain map viewer">
-      <div className="brain-map__tabs" role="tablist" aria-label="Brain map view">
-        <button type="button" role="tab" aria-selected={viewerMode === '2d'} className={viewerMode === '2d' ? 'is-active' : ''} onClick={() => setViewerMode('2d')}>2D slices</button>
-        <button type="button" role="tab" aria-selected={viewerMode === '3d'} className={viewerMode === '3d' ? 'is-active' : ''} onClick={() => setViewerMode('3d')}>3D brain</button>
-      </div>
-      {viewerMode === '2d'
-        ? <NiiViewer query={query} studyId={selectedStudyId || null} />
-        : <Brain3DViewer query={query} studyId={selectedStudyId || null} />}
       {selectedStudy && (
         <div className="brain-map__study-meta" aria-live="polite">
-          <h3>{selectedStudy.title || `Study ${selectedStudy.study_id}`}</h3>
+          <h2>{selectedStudy.title || `Study ${selectedStudy.study_id}`}</h2>
           <p>{Array.isArray(selectedStudy.authors ?? selectedStudy.author)
             ? (selectedStudy.authors ?? selectedStudy.author).join('; ')
             : (selectedStudy.authors ?? selectedStudy.author ?? 'Author information unavailable')}</p>
         </div>
       )}
+      <div className="brain-map__header">
+        <div>
+          <h2 className="card__title">Brain map</h2>
+          <p className="card__description">{selectedStudyId ? `Showing MNI coordinates for study ${selectedStudyId}.` : 'Explore the activation map across three anatomical views.'}</p>
+        </div>
+        <div className="brain-map__tabs" role="tablist" aria-label="Brain map view">
+          <button type="button" role="tab" aria-selected={viewerMode === '2d'} className={viewerMode === '2d' ? 'is-active' : ''} onClick={() => setViewerMode('2d')}>2D slices</button>
+          <button type="button" role="tab" aria-selected={viewerMode === '3d'} className={viewerMode === '3d' ? 'is-active' : ''} onClick={() => setViewerMode('3d')}>3D brain</button>
+        </div>
+      </div>
+      {viewerMode === '2d'
+        ? <NiiViewer query={query} studyId={selectedStudyId || null} />
+        : <Brain3DViewer query={query} studyId={selectedStudyId || null} />}
     </section>
       </main>
       <footer className="app__footer">

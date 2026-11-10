@@ -261,16 +261,18 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 
 /* NIfTI viewer */
 .nii-viewer { display: flex; flex-direction: column; gap: 13px; }
-.brain-map__tabs { display: inline-flex; align-self: flex-start; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: #f2f6f9; }
+.brain-map__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.brain-map__tabs { display: inline-flex; flex: 0 0 auto; align-self: flex-start; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: #f2f6f9; }
 .brain-map__tabs button { min-height: 34px; padding: 0 14px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #536b7f; font-size: 11px; font-weight: 750; cursor: pointer; }
 .brain-map__tabs button:hover { background: #e7eff4; }
 .brain-map__tabs button.is-active { border-color: #285d78; background: #285d78; color: #fff; box-shadow: 0 2px 5px rgba(25, 63, 84, .16); }
-.brain-map__study-meta { margin-top: 14px; padding: 13px 14px; border: 1px solid #d8e1e8; border-radius: 10px; background: #f6f8fa; color: #1b2735; }
-.brain-map__study-meta h3 { margin: 0; color: #172333; font-size: 13px; font-weight: 750; line-height: 1.45; }
+.brain-map__study-meta { margin: 0 0 12px; padding: 13px 14px; border: 1px solid #d8e1e8; border-radius: 10px; background: #f6f8fa; color: #1b2735; }
+.brain-map__study-meta h2 { margin: 0; color: #172333; font-size: 15px; font-weight: 750; line-height: 1.45; }
 .brain-map__study-meta p { margin: 5px 0 0; color: #35475a; font-size: 11px; line-height: 1.5; }
 .nii-viewer__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .nii-viewer__download { padding: 7px 10px; border: 1px solid #d7e3eb; border-radius: 8px; color: var(--primary); background: #f7fafc; font-size: 10px; font-weight: 700; text-decoration: none; white-space: nowrap; }
 .nii-viewer__download:hover { background: var(--primary-soft); }
+.nii-viewer__slice-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 32px; }
 .nii-viewer__controls { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: #fbfcfe; color: #56687a; font-size: 11px; }
 .nii-viewer__controls label { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .nii-viewer__controls input[type="number"], .nii-viewer__controls select { width: 100%; }
@@ -350,6 +352,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   .terms__list { max-height: 290px; }
   .studies__table-wrap { max-height: 48vh; }
   .nii-viewer__controls { grid-template-columns: 1fr; }
+  .brain-map__header { align-items: flex-start; flex-wrap: wrap; }
+  .brain-map__tabs { margin-left: auto; }
+  .nii-viewer__slice-footer { align-items: flex-end; flex-wrap: wrap; }
   .nii-viewer__slices { gap: 5px; }
   .nii-viewer__coords { gap: 5px; }
   .studies__pagination, .locations__pagination { align-items: flex-start; flex-direction: column; }

@@ -8,7 +8,7 @@ export function Brain3DViewer ({ query, studyId = null }) {
   const canvasRef = useRef(null)
   const nvRef = useRef(null)
   const zoomRef = useRef(1)
-  const [opacity, setOpacity] = useState(0.75)
+  const [opacity, setOpacity] = useState(0.4)
   const [loading, setLoading] = useState(false)
   const [viewerReady, setViewerReady] = useState(false)
   const [viewerError, setViewerError] = useState('')
@@ -32,7 +32,9 @@ export function Brain3DViewer ({ query, studyId = null }) {
         // supported constructor option in the project's Niivue version.
         nv.setHighResolutionCapable(true)
         nv.setSliceType(nv.sliceTypeRender)
-        await nv.loadVolumes([{ url: '/static/mni_2mm.nii.gz', opacity: 0.75 }])
+        // Keep the volume translucent enough for the MNI coordinate spheres
+        // to remain visible inside the brain instead of being hidden by it.
+        await nv.loadVolumes([{ url: '/static/mni_2mm.nii.gz', opacity: 0.4 }])
         if (cancelled) return
 
         await nv.setVolumeRenderIllumination(0.7)
@@ -75,29 +77,31 @@ export function Brain3DViewer ({ query, studyId = null }) {
       .then((data) => {
         if (!Array.isArray(data.results) || !nvRef.current) return
         setPointCount(data.results.length)
-        const nodes = data.results.map((pt) => ({
-          name: '',
+        const nodes = data.results.map((pt, index) => ({
+          // Numbered labels keep every focus visible and distinguishable in 3D.
+          name: String(index + 1),
           x: pt.x,
           y: pt.y,
           z: pt.z,
           colorValue: 1,
           sizeValue: 1
         }))
-        // Niivue 0.69 renders point markers through its connectome mesh API;
-        // loadNodes() is not part of this version and silently left the map blank.
+        // Keep the connectome legend enabled: Niivue renders its numbered,
+        // spatially anchored labels and leader marks through this legend layer.
         nvRef.current.loadConnectome({
           name: 'MNI activation coordinates',
-          nodeColormap: 'warm',
-          nodeColormapNegative: 'warm',
+          nodeColormap: 'red',
+          nodeColormapNegative: 'red',
           nodeMinColor: 0,
           nodeMaxColor: 1,
-          nodeScale: 4.5,
-          edgeColormap: 'warm',
-          edgeColormapNegative: 'warm',
+          nodeScale: 7,
+          edgeColormap: 'red',
+          edgeColormapNegative: 'red',
           edgeMin: 0,
           edgeMax: 1,
           edgeScale: 0,
-          showLegend: false,
+          showLegend: true,
+          legendLineThickness: 1.2,
           nodes,
           edges: []
         })
@@ -159,7 +163,7 @@ export function Brain3DViewer ({ query, studyId = null }) {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px' }}>
         <span>大腦透明度</span>
-        <input type="range" min="0.1" max="1.0" step="0.05" value={opacity} onChange={handleOpacityChange} style={{ flex: 1, accentColor: '#007bff' }} />
+        <input type="range" min="0.1" max="0.8" step="0.05" value={opacity} onChange={handleOpacityChange} style={{ flex: 1, accentColor: '#007bff' }} />
       </div>
     </div>
   )

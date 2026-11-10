@@ -481,14 +481,6 @@ const coord2idx = (c_mm, n, axis) => {
 
   return (
     <div className='nii-viewer'>
-      <div className='nii-viewer__header'>
-        <div>
-          <h2 className='card__title'>Brain map</h2>
-          <p className='card__description'>{studyId ? `Showing MNI coordinates for study ${studyId}.` : 'Explore the activation map across three anatomical views.'}</p>
-        </div>
-        {query && <a href={mapUrl} className='nii-viewer__download'>Download map</a>}
-      </div>
-
       {/* --- Threshold mode & value --- */}
       <div className='nii-viewer__controls'>
         <label className='flex items-center gap-2'>
@@ -582,10 +574,15 @@ const coord2idx = (c_mm, n, axis) => {
           ))}
         </div>
       )}
-      {studyId && studyPoints.length > 0 && (
-        <div className='nii-viewer__legend' aria-label='Brain map legend'>
-          <span><i className='nii-viewer__legend-point' />Reported MNI coordinate</span>
-          <span><i className='nii-viewer__legend-map' />Smoothed activation map</span>
+      {(query || (studyId && studyPoints.length > 0)) && (
+        <div className='nii-viewer__slice-footer'>
+          {studyId && studyPoints.length > 0 ? (
+            <div className='nii-viewer__legend' aria-label='Brain map legend'>
+              <span><i className='nii-viewer__legend-point' />Reported MNI coordinate</span>
+              <span><i className='nii-viewer__legend-map' />Smoothed activation map</span>
+            </div>
+          ) : <span />}
+          {query && <a href={mapUrl} className='nii-viewer__download'>Download map</a>}
         </div>
       )}
 
