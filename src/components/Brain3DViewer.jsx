@@ -4,25 +4,28 @@ import { Niivue } from '@niivue/niivue'
 export function Brain3DViewer ({ query }) {
   const canvasRef = useRef(null)
   const nvRef = useRef(null)
-  const [opacity, setOpacity] = useState(0.7)
+  const [opacity, setOpacity] = useState(0.75)
   const [loading, setLoading] = useState(false)
   const [pointCount, setPointCount] = useState(0)
 
+  // 1. 初始化高清晰度 3D 畫布與光照設定
   useEffect(() => {
     const nv = new Niivue({
       show3Dcrosshair: false,
       backColor: [0.05, 0.08, 0.12, 1],
       isOrientCube: true,
+      isHighResolution: true // 啟用高 DPI 渲染，大幅改善模糊感
     })
     nvRef.current = nv
     nv.attachToCanvas(canvasRef.current)
     nv.setSliceType(nv.sliceTypeRender)
 
-    nv.loadVolumes([{ url: '/static/mni_2mm.nii.gz', opacity: 0.7 }]).then(() => {
-      nv.setVolumeRenderIllumination(0.4)
+    nv.loadVolumes([{ url: '/static/mni_2mm.nii.gz', opacity: 0.75 }]).then(() => {
+      nv.setVolumeRenderIllumination(0.7) // 提高 3D 腦皮質陰影對比度
     })
   }, [])
 
+  // 2. 載入 MNI 標記點位
   useEffect(() => {
     if (!query || !nvRef.current) return
     setLoading(true)
@@ -38,7 +41,7 @@ export function Brain3DViewer ({ query }) {
             y: pt.y,
             z: pt.z,
             colorValue: 1,
-            size: 3
+            size: 3.5
           }))
           nvRef.current.loadNodes({
             nodeColormap: 'warm',
@@ -52,6 +55,7 @@ export function Brain3DViewer ({ query }) {
       .finally(() => setLoading(false))
   }, [query])
 
+  // 大腦透明度控制
   const handleOpacityChange = (e) => {
     const val = parseFloat(e.target.value)
     setOpacity(val)
@@ -60,17 +64,65 @@ export function Brain3DViewer ({ query }) {
     }
   }
 
+  // 按鈕放大 / 縮放控制
+  const handleZoom = (factor) => {
+    if (!nvRef.current) return
+    const nv = nvRef.current
+    if (nv.scene && nv.scene.volScale) {
+      nv.scene.volScale = nv.scene.volScale.map((v) => v * factor)
+      nv.drawScene()
+    }
+  }
+
+  // 重置大小
+  const handleResetZoom = () => {
+    if (!nvRef.current) return
+    const nv = nvRef.current
+    if (nv.scene && nv.scene.volScale) {
+      nv.scene.volScale = [1, 1, 1]
+      nv.drawScene()
+    }
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '300px', background: '#0d141f', padding: '12px', borderRadius: '12px', color: '#fff' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '320px', background: '#0d141f', padding: '12px', borderRadius: '12px', color: '#fff' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: '13px' }}>3D 腦影像</h3>
         {loading && <span style={{ fontSize: '11px', color: '#8da4b5' }}>載入座標中...</span>}
         {!loading && <span style={{ fontSize: '11px', color: '#8da4b5' }}>共標記 {pointCount} 個 MNI 點位</span>}
       </div>
 
-      {/* 3D Canvas 容器：固定高度 200px */}
+      {/* 3D 畫布與放大縮放按鈕區 */}
       <div style={{ flex: '1', position: 'relative', width: '100%', height: '200px', borderRadius: '8px', overflow: 'hidden' }}>
         <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+
+        {/* 右上角浮動按鈕 */}
+        <div style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '4px', zIndex: 10 }}>
+          <button
+            type="button"
+            onClick={() => handleZoom(1.2)}
+            title="放大"
+            style={{ width: '28px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.85)', color: '#fff', fontSize: '15px', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            onClick={() => handleZoom(0.83)}
+            title="縮小"
+            style={{ width: '28px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.85)', color: '#fff', fontSize: '15px', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+          >
+            -
+          </button>
+          <button
+            type="button"
+            onClick={handleResetZoom}
+            title="重置"
+            style={{ padding: '0 8px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.85)', color: '#fff', fontSize: '11px', cursor: 'pointer' }}
+          >
+            重置
+          </button>
+        </div>
       </div>
 
       {/* 控制面板 */}
