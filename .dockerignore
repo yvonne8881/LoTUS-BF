@@ -1,0 +1,16 @@
+node_modules
+dist
+.venv
+venv
+__pycache__
+*.py[cod]
+.git
+.env
+.env.*
+!.env.example
+*.pem
+instance
+*.db
+*.sqlite3
+.DS_Store
+.Rhistory

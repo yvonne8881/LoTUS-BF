@@ -1,0 +1,10 @@
+Flask
+Flask-Cors
+SQLAlchemy
+psycopg2-binary
+numpy
+nibabel
+scipy
+gunicorn
+pandas
+pyarrow

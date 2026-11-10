@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+instance/
+.env
+.env.*
+!.env.example
+*.pem
+*.db
+*.sqlite3
+.DS_Store
+.Rhistory
