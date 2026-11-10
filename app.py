@@ -26,9 +26,15 @@ def get_engine():
     db_url = os.environ.get("DATABASE_URL") or os.environ.get("DB_URL")
     if not db_url:
         raise RuntimeError("Missing DB_URL (or DATABASE_URL) environment variable.")
-    # Normalize URL
+    # This project installs psycopg2-binary, so always use that driver.
+    # Render URLs may arrive as postgres://, postgresql://, or explicitly
+    # select psycopg 3 (postgresql+psycopg://). Normalize all three forms.
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif db_url.startswith("postgresql+psycopg://"):
+        db_url = db_url.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
+    elif db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
     elif "postgresql" not in db_url and "://" not in db_url:
         db_url = "postgresql+psycopg2://" + db_url
     _engine = create_engine(db_url, pool_pre_ping=True, future=True)

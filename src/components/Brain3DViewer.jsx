@@ -1,94 +1,122 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Niivue } from '@niivue/niivue'
 
+const MIN_ZOOM = 0.5
+const MAX_ZOOM = 4
+
 export function Brain3DViewer ({ query }) {
   const canvasRef = useRef(null)
   const nvRef = useRef(null)
+  const zoomRef = useRef(1)
   const [opacity, setOpacity] = useState(0.75)
   const [loading, setLoading] = useState(false)
+  const [viewerReady, setViewerReady] = useState(false)
+  const [viewerError, setViewerError] = useState('')
   const [pointCount, setPointCount] = useState(0)
 
   useEffect(() => {
+    let cancelled = false
     const nv = new Niivue({
       show3Dcrosshair: false,
       backColor: [0.05, 0.08, 0.12, 1],
-      isOrientCube: true,
-      isHighResolution: true
+      isOrientCube: true
     })
     nvRef.current = nv
-    nv.attachToCanvas(canvasRef.current)
-    nv.setSliceType(nv.sliceTypeRender)
 
-    nv.loadVolumes([{ url: '/static/mni_2mm.nii.gz', opacity: 0.75 }]).then(() => {
-      nv.setVolumeRenderIllumination(0.7)
-    })
+    const initialize = async () => {
+      try {
+        await nv.attachToCanvas(canvasRef.current)
+        if (cancelled) return
+
+        // Use Niivue's public high-DPI method; `isHighResolution` is not a
+        // supported constructor option in the project's Niivue version.
+        nv.setHighResolutionCapable(true)
+        nv.setSliceType(nv.sliceTypeRender)
+        await nv.loadVolumes([{ url: '/static/mni_2mm.nii.gz', opacity: 0.75 }])
+        if (cancelled) return
+
+        await nv.setVolumeRenderIllumination(0.7)
+        if (cancelled) return
+        nv.setScale(zoomRef.current)
+        setViewerReady(true)
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to initialize 3D brain viewer:', error)
+          setViewerError('腦影像載入失敗，請稍後重試。')
+        }
+      }
+    }
+
+    initialize()
+    return () => {
+      cancelled = true
+      if (nvRef.current === nv) nvRef.current = null
+    }
   }, [])
 
   useEffect(() => {
-    if (!query || !nvRef.current) return
+    if (!query || !viewerReady || !nvRef.current) {
+      setPointCount(0)
+      return
+    }
+
+    const controller = new AbortController()
     setLoading(true)
 
-    fetch(`/query/${encodeURIComponent(query)}/locations`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.results && nvRef.current) {
-          setPointCount(data.results.length)
-          const nodes = data.results.map((pt, idx) => ({
-            id: idx,
-            x: pt.x,
-            y: pt.y,
-            z: pt.z,
-            colorValue: 1,
-            size: 3.5
-          }))
-          nvRef.current.loadNodes({
-            nodeColormap: 'warm',
-            nodeMinColor: 0,
-            nodeMaxColor: 1,
-            nodes: nodes
-          })
-        }
+    fetch(`/query/${encodeURIComponent(query)}/locations`, { signal: controller.signal })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`)
+        return data
       })
-      .catch((err) => console.error('Failed to load MNI points:', err))
-      .finally(() => setLoading(false))
-  }, [query])
+      .then((data) => {
+        if (!Array.isArray(data.results) || !nvRef.current) return
+        setPointCount(data.results.length)
+        const nodes = data.results.map((pt, idx) => ({
+          id: idx,
+          x: pt.x,
+          y: pt.y,
+          z: pt.z,
+          colorValue: 1,
+          size: 3.5
+        }))
+        nvRef.current.loadNodes({
+          nodeColormap: 'warm',
+          nodeMinColor: 0,
+          nodeMaxColor: 1,
+          nodes
+        })
+      })
+      .catch((error) => {
+        if (error.name !== 'AbortError') console.error('Failed to load MNI points:', error)
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
 
-  const handleOpacityChange = (e) => {
-    const val = parseFloat(e.target.value)
-    setOpacity(val)
-    if (nvRef.current && nvRef.current.volumes.length > 0) {
-      nvRef.current.setOpacity(0, val)
-    }
+    return () => controller.abort()
+  }, [query, viewerReady])
+
+  const handleOpacityChange = (event) => {
+    const value = Number.parseFloat(event.target.value)
+    setOpacity(value)
+    if (nvRef.current?.volumes?.length) nvRef.current.setOpacity(0, value)
   }
 
-  // 縮放控制：使用 stopPropagation 避免事件被 3D 畫布吞掉
-  const handleZoom = (e, factor) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!nvRef.current) return
-    const nv = nvRef.current
-    if (nv.scene) {
-      if (!nv.scene.volScale || nv.scene.volScale.length < 3) {
-        nv.scene.volScale = [1, 1, 1]
-      }
-      nv.scene.volScale = [
-        nv.scene.volScale[0] * factor,
-        nv.scene.volScale[1] * factor,
-        nv.scene.volScale[2] * factor
-      ]
-      nv.drawScene()
-    }
+  const handleZoom = (event, factor) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (!nvRef.current || !viewerReady) return
+    zoomRef.current = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomRef.current * factor))
+    nvRef.current.setScale(zoomRef.current)
   }
 
-  const handleResetZoom = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!nvRef.current) return
-    const nv = nvRef.current
-    if (nv.scene) {
-      nv.scene.volScale = [1, 1, 1]
-      nv.drawScene()
-    }
+  const handleResetZoom = (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (!nvRef.current || !viewerReady) return
+    zoomRef.current = 1
+    nvRef.current.setScale(zoomRef.current)
   }
 
   return (
@@ -101,51 +129,22 @@ export function Brain3DViewer ({ query }) {
 
       <div style={{ flex: '1', position: 'relative', width: '100%', height: '200px', borderRadius: '8px', overflow: 'hidden' }}>
         <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+        {viewerError && <div role="status" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: '16px', background: '#0d141f', color: '#ffb4a9', fontSize: '12px', textAlign: 'center' }}>{viewerError}</div>}
 
-        {/* 右上角浮動按鈕區 */}
         <div
           style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '4px', zIndex: 30 }}
-          onClick={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
         >
-          <button
-            type="button"
-            onClick={(e) => handleZoom(e, 1.25)}
-            title="放大"
-            style={{ width: '28px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.9)', color: '#fff', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
-          >
-            +
-          </button>
-          <button
-            type="button"
-            onClick={(e) => handleZoom(e, 0.8)}
-            title="縮小"
-            style={{ width: '28px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.9)', color: '#fff', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
-          >
-            -
-          </button>
-          <button
-            type="button"
-            onClick={(e) => handleResetZoom(e)}
-            title="重置"
-            style={{ padding: '0 8px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.9)', color: '#fff', fontSize: '11px', cursor: 'pointer' }}
-          >
-            重置
-          </button>
+          <button type="button" onClick={(event) => handleZoom(event, 1.25)} title="放大" aria-label="放大" disabled={!viewerReady} style={{ width: '28px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.9)', color: '#fff', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'grid', placeItems: 'center' }}>+</button>
+          <button type="button" onClick={(event) => handleZoom(event, 0.8)} title="縮小" aria-label="縮小" disabled={!viewerReady} style={{ width: '28px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.9)', color: '#fff', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'grid', placeItems: 'center' }}>-</button>
+          <button type="button" onClick={handleResetZoom} title="重置" disabled={!viewerReady} style={{ padding: '0 8px', height: '28px', border: '1px solid #2e4357', borderRadius: '6px', background: 'rgba(13, 20, 31, 0.9)', color: '#fff', fontSize: '11px', cursor: 'pointer' }}>重置</button>
         </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px' }}>
         <span>大腦透明度</span>
-        <input
-          type="range"
-          min="0.1"
-          max="1.0"
-          step="0.05"
-          value={opacity}
-          onChange={handleOpacityChange}
-          style={{ flex: 1, accentColor: '#007bff' }}
-        />
+        <input type="range" min="0.1" max="1.0" step="0.05" value={opacity} onChange={handleOpacityChange} style={{ flex: 1, accentColor: '#007bff' }} />
       </div>
     </div>
   )
